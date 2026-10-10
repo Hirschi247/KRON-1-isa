@@ -21,14 +21,17 @@
 #define KRON_OPERAND_POS            0
 #define KRON_OPERAND_WIDTH          16
 
+#define KRON_JUMP_ADDR_POS          0
+
 /* Register im Operand-Feld (ALU-rs2, Jump-Register) */
 #define KRON_OPERAND_REG_POS        0
 
 /* ---------- Sprechende Aliase (keine eigenen Zahlen!) ---------- */
-#define KRON_MEM_RD_RSRC_POS           KRON_RD_POS
+#define KRON_MEM_RD_RSRC_POS        KRON_RD_POS
 #define KRON_MEM_RBASE_POS          KRON_RS1_POS
 #define KRON_ALU_RS2_POS            KRON_OPERAND_REG_POS
 #define KRON_JUMP_REG_POS           KRON_OPERAND_REG_POS
+#define KRON_JUMP_COND_POS          KRON_SUBOPCODE_POS
 
 /* ---------- Control-Bits (absolute Bitposition) ---------- */
 #define KRON_ALU_IMM_BIT            33
@@ -43,6 +46,8 @@
 #define KRON_SHIFT_WIDTH            4
 
 /* ---------- Feste Register ---------- */
+
+#define KRON_REGISTER_COUNT         32
 #define KRON_REG_ZERO               0
 #define KRON_REG_SP                 30
 #define KRON_REG_LINK               31

@@ -9,7 +9,7 @@ static const Isa_Entry isa_table[] = {
     {.name = "JMP", .format = FMT_LIOR, .Prefix = PREFIX_JUMP, .Controls = 0x00, .Subopcode = JUMP_ALWAYS},
     {.name = "NOP", .format = FMT_NOP, .Prefix = PREFIX_ALU, .Controls = 0x00, .Subopcode = ALU_NOP},
     {.name = "HALT", .format = FMT_NOP, .Prefix = PREFIX_ALU, .Controls = 0x00, .Subopcode = ALU_HALT}
-}; //TODO: Es muss geprüft werden, ob eine Immediate Value zu groß ist
+};
 
 const Isa_Entry *isa_lookup (const char *name) {
     for (int i = 0; i < sizeof(isa_table) / sizeof(isa_table[0]); i++) {
