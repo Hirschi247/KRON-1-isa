@@ -39,6 +39,12 @@
 #define KRON_JUMP_LINK_BIT          33
 #define KRON_JUMP_IND_BIT           32
 
+/* ---------- Control-Masken (relativ zum Control-Feld, für Isa_Entry.Controls) ---------- */
+#define KRON_CTRL_ALU_IMM           (1u << (KRON_ALU_IMM_BIT      - KRON_CONTROLS_POS))
+#define KRON_CTRL_ALU_SUPPRESS      (1u << (KRON_ALU_SUPPRESS_BIT - KRON_CONTROLS_POS))
+#define KRON_CTRL_JUMP_LINK         (1u << (KRON_JUMP_LINK_BIT    - KRON_CONTROLS_POS))
+#define KRON_CTRL_JUMP_IND          (1u << (KRON_JUMP_IND_BIT     - KRON_CONTROLS_POS))
+
 /* ---------- Genutzte Teilbreiten ---------- */
 #define KRON_MEM_SUBOPCODE_WIDTH    2
 #define KRON_COND_WIDTH             3
@@ -91,12 +97,15 @@ enum Jump_Condition_Code {
     JUMP_GE = 0x06
 };
 
+/* Operandenform eines Befehls. Wird noch nicht ausgewertet; gedacht für eine spätere Prüfung
+ * von Anzahl und Art der Operanden in encode(). */
 enum Formatclass {
     FMT_RRR, // Register, Register, Register e.g. ADD rd, rs1, rs2
     FMT_RRI, // Register, Register, Immediate e.g. ADD rd, rs1, 5
     FMT_ROR, // Register, Offset, Register e.g. STORE rd, offset(rs1)
     FMT_RLI, // Register, Large Immediate e.g. LI rd, 5
-    FMT_LIOR,  // Large Immediate only e.g. JMP 0x1000 or Register only e.g. JMP rs
+    FMT_R,   // Register only e.g. JMP rs
+    FMT_LI,  // Large Immediate only e.g. JMP 0x1000
     FMT_NOP  // No operands e.g. NOP or HALT
 };
 
