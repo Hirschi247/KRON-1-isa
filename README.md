@@ -3,8 +3,8 @@
 Der Befehlssatz (Instruction Set Architecture) der **KRON-1**, einer eigenen 16-Bit-CPU mit
 36-Bit-Befehlswort, als kleine C-Bibliothek.
 
-Zum KRON-1-Projekt gehören ein [Assembler](https://github.com/Hirschi247/assembler) und ein
-[Simulator](https://github.com/Hirschi247/Aeon-Kron-1-Simulator). Beide nutzen dieses Repo als
+Zum KRON-1-Projekt gehören ein [Assembler](https://github.com/Hirschi247/KRON-1-assembler) und ein
+[Simulator](https://github.com/Hirschi247/KRON-1-simulator). Beide nutzen dieses Repo als
 **Single Source of Truth**: Bitpositionen, Feldbreiten, Opcodes und Mnemonics sind nur hier
 festgelegt. So verwenden Assembler und Simulator garantiert dasselbe Befehlsformat.
 
@@ -44,12 +44,12 @@ prefix | control  | subopcode  |    rd     |    rs1    |     operand
 
 ### Einbinden mit CMake
 
-Das Repo ist eine statische CMake-Bibliothek mit dem Target `isa`. Das Include-Verzeichnis wird
+Das Repo ist eine statische CMake-Bibliothek mit dem Target `KRON-1-isa`. Das Include-Verzeichnis wird
 automatisch weitergegeben:
 
 ```cmake
-add_subdirectory(../isa isa)          # Pfad relativ zum eigenen Projekt
-target_link_libraries(mein_target PUBLIC isa)
+add_subdirectory(../KRON-1-isa isa)   # Pfad relativ zum eigenen Projekt
+target_link_libraries(mein_target PUBLIC KRON-1-isa)
 ```
 
 Danach reicht im Code:
@@ -185,14 +185,14 @@ noch nicht umgesetzt.
 
 | Projekt | Beschreibung |
 |---------|--------------|
-| [assembler](https://github.com/Hirschi247/assembler) | Übersetzt KRON-1-Assembler in `.mem`-Dateien (Kernlogik in [asmcore](https://github.com/Hirschi247/asmcore)) |
-| [Aeon-Kron-1-Simulator](https://github.com/Hirschi247/Aeon-Kron-1-Simulator) | Führt `.mem`-Dateien aus |
+| [KRON-1-assembler](https://github.com/Hirschi247/KRON-1-assembler) | Übersetzt KRON-1-Assembler in `.mem`-Dateien (Kernlogik in [KRON-1-asmcore](https://github.com/Hirschi247/KRON-1-asmcore)) |
+| [KRON-1-simulator](https://github.com/Hirschi247/KRON-1-simulator) | Führt `.mem`-Dateien aus |
 
-Beide binden dieses Repo als Ordner `isa` ein. Wie die Ordner genau liegen müssen, steht in der
-README des jeweiligen Projekts. Wichtig ist nur, beim Klonen den Zielordner `isa` anzugeben:
+Beide erwarten dieses Repo im Ordner `KRON-1-isa`. Wie die Ordner genau liegen müssen, steht in der
+README des jeweiligen Projekts. Den Ordner legt `git clone` ohne weitere Angabe richtig an:
 
 ```bash
-git clone https://github.com/Hirschi247/kron-1-isa.git isa
+git clone https://github.com/Hirschi247/KRON-1-isa.git
 ```
 
 Eine Änderung hier wirkt sich auf Assembler **und** Simulator aus. Nach Änderungen am Format also
