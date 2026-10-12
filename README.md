@@ -1,17 +1,21 @@
 # KRON-1 ISA
 
-Gemeinsame Definition des KRON-1-Befehlssatzes als kleine C-Bibliothek. Sie ist die **einzige
-Stelle**, an der Bitpositionen, Feldbreiten, Opcodes und Mnemonics festgelegt sind. Assembler und
-Simulator binden sie ein, damit beide garantiert dasselbe Befehlsformat verwenden.
+Der Befehlssatz (Instruction Set Architecture) der **KRON-1**, einer eigenen 16-Bit-CPU mit
+36-Bit-Befehlswort, als kleine C-Bibliothek.
+
+Zum KRON-1-Projekt gehören ein [Assembler](https://github.com/Hirschi247/assembler) und ein
+[Simulator](https://github.com/Hirschi247/Aeon-Kron-1-Simulator). Beide nutzen dieses Repo als
+**Single Source of Truth**: Bitpositionen, Feldbreiten, Opcodes und Mnemonics sind nur hier
+festgelegt. So verwenden Assembler und Simulator garantiert dasselbe Befehlsformat.
+
+Die vollständige Spezifikation mit Semantik aller Befehle steht in **[KRON-ISA.md](KRON-ISA.md)**.
+Diese Bibliothek setzt sie in Code um.
 
 | Datei     | Inhalt |
 |-----------|--------|
-| `isa.h`   | Bitfelder (`KRON_*_POS`, `KRON_*_WIDTH`), Control-Bits, feste Register, `KRON_MASK`, Enums für Prefixe, Subopcodes und Condition-Codes, Formatklassen, `Isa_Entry` |
+| `isa.h`   | Bitfelder (`KRON_*_POS`, `KRON_*_WIDTH`), Control-Bits (`KRON_*_BIT`) und Control-Masken (`KRON_CTRL_*`), feste Register, `KRON_MASK`, Enums für Prefixe, Subopcodes und Condition-Codes, Formatklassen, `Isa_Entry` |
 | `isa.c`   | Befehlstabelle `isa_table` und `isa_lookup()` |
-
-Die verbindliche Spezifikation des Befehlssatzes ist `KRON-ISA.md` (im übergeordneten
-`KRON1`-Ordner). Diese Bibliothek setzt sie in Code um. Weichen beide voneinander ab, ist eins
-von beiden falsch.
+| `test/test_isa.c` | Prüft Feldlayout, Befehlstabelle und die Kodierungsbeispiele aus der Spezifikation |
 
 ---
 
@@ -98,7 +102,7 @@ immer die Makros aus `isa.h`. Nur so wirkt sich eine Änderung am Format überal
 typedef struct
 {
     const char *name;         // Mnemonic, z.B. "ADD"
-    enum Formatclass format;  // Operandenform, bestimmt das Parsen im Assembler
+    enum Formatclass format;  // Operandenform (wird noch nicht ausgewertet)
     enum Prefix Prefix;       // ALU, MEM oder JUMP
     uint8_t Controls;         // Wert des 3-Bit-Felds control [33:31]
     uint8_t Subopcode;        // Operation bzw. Bedingung bei Jumps
@@ -106,17 +110,28 @@ typedef struct
 ```
 
 **`Controls`** ist der Wert des ganzen 3-Bit-Felds, nicht die absolute Bitposition. Bit 2 steht für
-`control[33]`, Bit 1 für `control[32]`. Beispiele:
+`control[33]`, Bit 1 für `control[32]`. Statt Zahlen nimmt man die Masken `KRON_CTRL_*` aus `isa.h`.
+Sie werden aus den absoluten Bitpositionen (`KRON_*_BIT`) abgeleitet. Mehrere Bits verknüpft man
+mit `|`. Beispiele:
 
-| Befehl | control `[33:31]` | `Controls` |
-|--------|-------------------|------------|
-| `ADD`  | `000`             | `0x0` |
-| `ADDI` | `100` (imm)       | `0x4` |
-| `CMP`  | `010` (suppress)  | `0x2` |
-| `CALL` | `100` (link)      | `0x4` |
-| `RET`  | `010` (ind)       | `0x2` |
+| Befehl  | control `[33:31]`   | `Controls` |
+|---------|---------------------|------------|
+| `ADD`   | `000`               | `0` |
+| `ADDI`  | `100` (imm)         | `KRON_CTRL_ALU_IMM` (`0x4`) |
+| `CMP`   | `010` (suppress)    | `KRON_CTRL_ALU_SUPPRESS` (`0x2`) |
+| `CALL`  | `100` (link)        | `KRON_CTRL_JUMP_LINK` (`0x4`) |
+| `JMPR`  | `010` (ind)         | `KRON_CTRL_JUMP_IND` (`0x2`) |
+| `CALLR` | `110` (link + ind)  | `KRON_CTRL_JUMP_LINK \| KRON_CTRL_JUMP_IND` (`0x6`) |
+
+Die absoluten Positionen `KRON_*_BIT` sind für das ganze Befehlswort gedacht, zum Beispiel beim
+Dekodieren im Simulator. Auf `Controls` darf man sie nicht direkt anwenden.
 
 ### Formatklassen
+
+Die Formatklasse beschreibt, welche Operanden ein Befehl erwartet. Der Assembler wertet sie
+**noch nicht aus**: `encode()` in `asmcore` wählt die Kodierung nach `Prefix`, `Subopcode` und
+`Controls` und prüft die Operanden nicht. Später soll damit geprüft werden, ob Anzahl und Art der
+Operanden stimmen (z. B. `ADD R1, R2, 5` als Syntaxfehler).
 
 | Formatklasse | Operanden                | Beispiel |
 |--------------|--------------------------|----------|
@@ -124,7 +139,8 @@ typedef struct
 | `FMT_RRI`    | Register, Register, Immediate | `ADDI R1, R2, 5` |
 | `FMT_ROR`    | Register, Offset(Register) | `STORE R1, 0xF00(R0)` |
 | `FMT_RLI`    | Register, 16-Bit-Immediate | `LI R1, 42` |
-| `FMT_LIOR`   | Adresse oder Register     | `JMP loop`, `JMP R5` |
+| `FMT_LI`     | Adresse                  | `JMP loop` |
+| `FMT_R`      | Register                 | `JMPR R5` |
 | `FMT_NOP`    | keine                    | `NOP`, `HALT` |
 
 ---
@@ -133,51 +149,47 @@ typedef struct
 
 Aktuell in `isa_table` eingetragen:
 
-| Mnemonic | Format     | Prefix | Subopcode   |
-|----------|------------|--------|-------------|
-| `ADD`    | `FMT_RRR`  | ALU    | `ALU_ADD`   |
-| `LI`     | `FMT_RLI`  | MEM    | `MEM_LI`    |
-| `STORE`  | `FMT_ROR`  | MEM    | `MEM_STORE` |
-| `JMP`    | `FMT_LIOR` | JUMP   | `JUMP_ALWAYS` |
-| `NOP`    | `FMT_NOP`  | ALU    | `ALU_NOP`   |
-| `HALT`   | `FMT_NOP`  | ALU    | `ALU_HALT`  |
+| Mnemonic | Format     | Prefix | Controls             | Subopcode     |
+|----------|------------|--------|----------------------|---------------|
+| `ADD`    | `FMT_RRR`  | ALU    | `0`                  | `ALU_ADD`     |
+| `ADDI`   | `FMT_RRI`  | ALU    | `KRON_CTRL_ALU_IMM`  | `ALU_ADD`     |
+| `SUB`    | `FMT_RRR`  | ALU    | `0`                  | `ALU_SUB`     |
+| `SUBI`   | `FMT_RRI`  | ALU    | `KRON_CTRL_ALU_IMM`  | `ALU_SUB`     |
+| `LI`     | `FMT_RLI`  | MEM    | `0`                  | `MEM_LI`      |
+| `STORE`  | `FMT_ROR`  | MEM    | `0`                  | `MEM_STORE`   |
+| `LOAD`   | `FMT_ROR`  | MEM    | `0`                  | `MEM_LOAD`    |
+| `JMP`    | `FMT_LI`   | JUMP   | `0`                  | `JUMP_ALWAYS` |
+| `JMPR`   | `FMT_R`    | JUMP   | `KRON_CTRL_JUMP_IND` | `JUMP_ALWAYS` |
+| `NOP`    | `FMT_NOP`  | ALU    | `0`                  | `ALU_NOP`     |
+| `HALT`   | `FMT_NOP`  | ALU    | `0`                  | `ALU_HALT`    |
 
-Die Subopcodes für `SUB`, `AND`, `OR`, `XOR`, `NOT`, `SHL`, `SHR`, `LOAD` und alle bedingten
-Sprünge sind in `isa.h` schon definiert, fehlen aber noch in der Tabelle. Die I-Formen (`ADDI`, …),
-`CMP`/`TEST`, `CALL` und `RET` stehen bisher nur in `KRON-ISA.md`.
+Die Subopcodes für `AND`, `OR`, `XOR`, `NOT`, `SHL`, `SHR` und alle bedingten Sprünge sind in
+`isa.h` schon definiert, fehlen aber noch in der Tabelle. Die übrigen I-Formen (`ANDI`, …),
+`CMP`/`TEST`, `CALL`/`CALLR` und `RET` sind in der [Spezifikation](KRON-ISA.md) beschrieben, aber
+noch nicht umgesetzt.
 
 ### Neuen Befehl eintragen
 
 1. Zeile in `isa_table` in `isa.c` ergänzen:
    ```c
-   {.name = "SUB", .format = FMT_RRR, .Prefix = PREFIX_ALU, .Controls = 0x00, .Subopcode = ALU_SUB},
+   {.name = "AND", .format = FMT_RRR, .Prefix = PREFIX_ALU, .Controls = 0, .Subopcode = ALU_AND},
    ```
 2. Falls nötig, neuen Subopcode oder Condition-Code im passenden Enum in `isa.h` ergänzen.
-3. Braucht der Befehl eine neue Operandenform: neue `Formatklasse` in `isa.h` anlegen und den
-   passenden Encoder in `asmcore` implementieren.
+3. Braucht der Befehl eine neue Operandenform: neue `Formatklasse` in `isa.h` anlegen und
+   `encode()` in `asmcore` so erweitern, dass es die neue Form übersetzt.
 4. Assembler und Simulator neu bauen.
 
 ---
 
 ## Wer nutzt die Bibliothek
 
-| Projekt | Einbindung |
-|---------|------------|
-| [assembler](https://github.com/Hirschi247/assembler) / [asmcore](https://github.com/Hirschi247/asmcore) | `add_subdirectory(../../isa isa)` aus `Assembler/assembler` |
-| [Aeon-Kron-1-Simulator](https://github.com/Hirschi247/Aeon-Kron-1-Simulator) | `add_subdirectory(../isa isa)` |
+| Projekt | Beschreibung |
+|---------|--------------|
+| [assembler](https://github.com/Hirschi247/assembler) | Übersetzt KRON-1-Assembler in `.mem`-Dateien (Kernlogik in [asmcore](https://github.com/Hirschi247/asmcore)) |
+| [Aeon-Kron-1-Simulator](https://github.com/Hirschi247/Aeon-Kron-1-Simulator) | Führt `.mem`-Dateien aus |
 
-Beide erwarten das Repo als Ordner **`isa`** direkt im `KRON1`-Ordner:
-
-```
-KRON1/
-├── isa/                    ← dieses Repo
-├── Aeon-Kron-1-Simulator/
-└── Assembler/
-    ├── asmcore/
-    └── assembler/
-```
-
-Klonen deshalb mit Zielordner:
+Beide binden dieses Repo als Ordner `isa` ein. Wie die Ordner genau liegen müssen, steht in der
+README des jeweiligen Projekts. Wichtig ist nur, beim Klonen den Zielordner `isa` anzugeben:
 
 ```bash
 git clone https://github.com/Hirschi247/kron-1-isa.git isa
@@ -190,13 +202,24 @@ beide neu bauen und testen.
 
 ## Bauen
 
-Voraussetzungen: C11-Compiler und **CMake ≥ 4.3**. Allein gebaut entsteht nur die statische
-Bibliothek (`libisa.a` bzw. `isa.lib`):
+Voraussetzungen: C11-Compiler und **CMake ≥ 3.16**. Allein gebaut entstehen die statische
+Bibliothek (`libisa.a` bzw. `isa.lib`) und das Testprogramm:
 
 ```bash
 cmake -S . -B build
 cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
-Normalerweise baut man sie aber nicht einzeln, sondern sie wird über `add_subdirectory` vom
-Assembler oder Simulator mitgebaut.
+Der Test kodiert die Beispiele aus Kapitel 6 und 8 der [Spezifikation](KRON-ISA.md) nur mit den
+Makros aus `isa.h` und den Einträgen aus `isa_lookup()` und vergleicht sie mit den dort angegebenen
+Hex-Werten. Weichen Code und Spezifikation voneinander ab, schlägt er fehl.
+
+Normalerweise baut man die Bibliothek aber nicht einzeln, sondern sie wird über `add_subdirectory`
+vom Assembler oder Simulator mitgebaut. Der Test wird dabei nicht mitgebaut.
+
+---
+
+## Lizenz
+
+[MIT](LICENSE)

@@ -17,7 +17,7 @@ static const Isa_Entry isa_table[] = {
 };
 
 const Isa_Entry *isa_lookup (const char *name) {
-    for (int i = 0; i < sizeof(isa_table) / sizeof(isa_table[0]); i++) {
+    for (size_t i = 0; i < sizeof(isa_table) / sizeof(isa_table[0]); i++) {
         if (strcmp(name, isa_table[i].name) == 0)
             return &isa_table[i];
     }

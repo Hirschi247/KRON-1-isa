@@ -1,10 +1,12 @@
 ﻿#ifndef ISA_LIBRARY_H
 #define ISA_LIBRARY_H
 
-/* ---------- Word ---------- */
+#include <stdint.h>
+
+/* ---------- Befehlswort ---------- */
 #define KRON_WORD_WIDTH             36
 
-/* ---------- Fields ---------- */
+/* ---------- Felder ---------- */
 #define KRON_PREFIX_POS             34
 #define KRON_PREFIX_WIDTH           2
 
@@ -60,8 +62,6 @@
 
 #define KRON_MASK(width) ((1ULL << (width)) - 1)
 
-#include <stdint.h>
-
 enum Prefix {
     PREFIX_ALU = 0x00,
     PREFIX_MEM = 0x01,
@@ -100,22 +100,22 @@ enum Jump_Condition_Code {
 /* Operandenform eines Befehls. Wird noch nicht ausgewertet; gedacht für eine spätere Prüfung
  * von Anzahl und Art der Operanden in encode(). */
 enum Formatclass {
-    FMT_RRR, // Register, Register, Register e.g. ADD rd, rs1, rs2
-    FMT_RRI, // Register, Register, Immediate e.g. ADD rd, rs1, 5
-    FMT_ROR, // Register, Offset, Register e.g. STORE rd, offset(rs1)
-    FMT_RLI, // Register, Large Immediate e.g. LI rd, 5
-    FMT_R,   // Register only e.g. JMP rs
-    FMT_LI,  // Large Immediate only e.g. JMP 0x1000
-    FMT_NOP  // No operands e.g. NOP or HALT
+    FMT_RRR, // Register, Register, Register   z. B. ADD rd, rs1, rs2
+    FMT_RRI, // Register, Register, Immediate  z. B. ADDI rd, rs1, 5
+    FMT_ROR, // Register, Offset(Register)     z. B. STORE rsrc, offset(rbase)
+    FMT_RLI, // Register, 16-Bit-Immediate     z. B. LI rd, 5
+    FMT_R,   // nur Register                   z. B. JMPR rx
+    FMT_LI,  // nur Adresse (12 Bit)           z. B. JMP 0x100
+    FMT_NOP  // keine Operanden                z. B. NOP, HALT
 };
 
 typedef struct
 {
-    const char *name;
-    enum Formatclass format;
-    enum Prefix Prefix;
-    uint8_t Controls; // Sachen wie bei ALU Opcodes "Supress Writeback" und "Immediate"
-    uint8_t Subopcode;
+    const char *name;         // Mnemonic, z. B. "ADD"
+    enum Formatclass format;  // Operandenform
+    enum Prefix Prefix;       // ALU, MEM oder JUMP
+    uint8_t Controls;         // Wert des 3-Bit-Felds control [33:31], aus KRON_CTRL_* zusammengesetzt
+    uint8_t Subopcode;        // Operation bzw. Bedingung bei Jumps
 } Isa_Entry;
 
 const Isa_Entry *isa_lookup (const char *name);
